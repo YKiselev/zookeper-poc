@@ -1,100 +1,97 @@
 package com.github.ykiselev;
 
-import org.apache.curator.CuratorZookeeperClient;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.ExponentialBackoffRetry;
+import org.apache.curator.utils.ZKPaths;
 import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.WatchedEvent;
-import org.apache.zookeeper.Watcher;
-import org.apache.zookeeper.ZooDefs;
+import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
+
 /**
  * @author Yuriy Kiselev (uze@yandex.ru).
  */
-public final class App implements Watcher {
+public final class App {
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
-    private final CuratorZookeeperClient client;
+    private final CuratorFramework curator;
 
-    private App(CuratorZookeeperClient client) {
-        this.client = client;
+    private App(CuratorFramework curator) {
+        this.curator = curator;
     }
 
     public static void main(String[] args) throws Exception {
-        final CuratorFramework curatorFramework = CuratorFrameworkFactory.builder()
+        final CuratorFrameworkFactory.Builder builder = CuratorFrameworkFactory.builder()
+                .connectString("localhost:2181")
                 .connectionTimeoutMs(5_000)
                 .namespace("test-app")
-                .retryPolicy(new ExponentialBackoffRetry(1_000, 5))
-                .build();
-        curatorFramework.blockUntilConnected();
-        new App(curatorFramework.getZookeeperClient())
-                .run();
+                .retryPolicy(new ExponentialBackoffRetry(1_000, 5));
+        try (CuratorFramework cf = builder.build()) {
+            cf.start();
+            cf.blockUntilConnected();
+            new App(cf)
+                    .run();
+        }
     }
 
     private void run() throws Exception {
-        try {
-            final String path = "/a/b";
-            final Stat stat = zk.exists(path, false);
-            if (stat == null) {
-                logger.info("No value found, creating...");
-                final String v = zk.create(
-                        path,
-                        new byte[]{1, 2, 3},
-                        ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                        CreateMode.PERSISTENT
-                );
-                logger.info("Created: {}", v);
-            } else {
-                logger.info("Value already exists!");
-            }
-            while (!Thread.currentThread().isInterrupted()) {
-                final ZooKeeper.States state = zk.getState();
-                if (!state.isAlive()) {
-                    break;
-                }
-                Thread.sleep(10);
-            }
-        } finally {
-            zk.close();
+        // 1
+        final String areLoaded = "/properties/areLoaded";
+        final Stat s = curator.checkExists().forPath(areLoaded);
+        if (s == null) {
+            logger.info("Loading properties...");
+            curator.create()
+                    .orSetData()
+                    .creatingParentsIfNeeded()
+                    .withMode(CreateMode.EPHEMERAL)
+                    .forPath(areLoaded, "true".getBytes());
+            //.creatingParentsIfNeeded()
+            //.forPath(ZKPaths.makePath(areLoaded, "foo"));
+            //curator.setData().forPath(areLoaded, "true".getBytes());
+        } else {
+            logger.info("Properties are already loaded, skipping...");
+        }
+        // 2
+        final Props props = new Props(curator);
+        props.loadFrom(getClass().getResource("/demo.properties"));
+        // 3
+        printTree(curator.getZookeeperClient()
+                .getZooKeeper());
+        // 4
+        while (!Thread.currentThread().isInterrupted()) {
+            Thread.sleep(10);
         }
         logger.info("Bye!");
     }
 
-    @Override
-    public void process(WatchedEvent event) {
-        logger.info("Got event: {}", event);
+    private void printTree(ZooKeeper zk) {
+        printNode(zk, "/");
     }
 
-    private void ensureConnected() throws InterruptedException {
-        while (!Thread.currentThread().isInterrupted()) {
-            final ZooKeeper.States state = zk.getState();
-            if (state.isConnected()) {
-                break;
-            } else if (!state.isAlive()) {
-                throw new IllegalStateException("Not alive!");
-            }
-            Thread.sleep(10);
-        }
-    }
-
-    private byte[] tryGet(String name) {
+    private void printNode(ZooKeeper zk, String name) {
         try {
             final Stat stat = zk.exists(name, false);
-            if (stat != null) {
-                return zk.getData(name, null, null);
+            if (stat == null) {
+                return;
             }
+            if (stat.getDataLength() > 0) {
+                final byte[] data = zk.getData(name, false, null);
+                logger.info("{} = {}", name, new String(data, StandardCharsets.UTF_8));
+            } else {
+                logger.info(name);
+            }
+            zk.getChildren(name, false)
+                    .forEach(v -> printNode(zk, ZKPaths.makePath(name, v)));
+        } catch (KeeperException e) {
+            logger.error("Tree traversal failed!", e);
         } catch (InterruptedException e) {
-            logger.warn("Interrupted: {}", e);
             Thread.currentThread().interrupt();
-        } catch (Exception e) {
-            logger.error("Operation failed!", e);
         }
-        return null;
     }
 }
