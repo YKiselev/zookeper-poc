@@ -16,7 +16,7 @@ import java.nio.charset.StandardCharsets;
 /**
  * @author Yuriy Kiselev (uze@yandex.ru).
  */
-public final class App {
+public final class App implements Common {
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
@@ -26,13 +26,17 @@ public final class App {
         this.curator = curator;
     }
 
+    public static CuratorFramework newCuratorFramework() {
+        return CuratorFrameworkFactory.builder()
+                .connectString(CONNECT_STRING)
+                .sessionTimeoutMs(SESSION_TIMEOUT)
+                .namespace("dev")
+                .retryPolicy(new ExponentialBackoffRetry(1_000, 5))
+                .build();
+    }
+
     public static void main(String[] args) throws Exception {
-        final CuratorFrameworkFactory.Builder builder = CuratorFrameworkFactory.builder()
-                .connectString("localhost:2181")
-                .connectionTimeoutMs(5_000)
-                .namespace("test-app")
-                .retryPolicy(new ExponentialBackoffRetry(1_000, 5));
-        try (CuratorFramework cf = builder.build()) {
+        try (CuratorFramework cf = newCuratorFramework()) {
             cf.start();
             cf.blockUntilConnected();
             new App(cf)
@@ -41,32 +45,28 @@ public final class App {
     }
 
     private void run() throws Exception {
-        // 1
-        final String areLoaded = "/properties/areLoaded";
-        final Stat s = curator.checkExists().forPath(areLoaded);
+        final Stat s = curator.checkExists().forPath(PROPERTIES_ARE_LOADED);
         if (s == null) {
             logger.info("Loading properties...");
             curator.create()
                     .orSetData()
                     .creatingParentsIfNeeded()
                     .withMode(CreateMode.EPHEMERAL)
-                    .forPath(areLoaded, "true".getBytes());
-            //.creatingParentsIfNeeded()
-            //.forPath(ZKPaths.makePath(areLoaded, "foo"));
-            //curator.setData().forPath(areLoaded, "true".getBytes());
+                    .forPath(PROPERTIES_ARE_LOADED, Bytes.toBytes("true"));
+
+            // Load detailed properties
+            final DetailedProps p1 = new DetailedProps(curator);
+            p1.loadFrom(getClass().getResource("/demo.properties"));
+
+            // Load detailed properties
+            final Props p2 = new Props(curator);
+            p2.loadFrom(getClass().getResource("/demo.properties"));
         } else {
             logger.info("Properties are already loaded, skipping...");
         }
-        // 2
-        final Props props = new Props(curator);
-        props.loadFrom(getClass().getResource("/demo.properties"));
-        // 3
+        // Show properties
         printTree(curator.getZookeeperClient()
                 .getZooKeeper());
-        // 4
-        while (!Thread.currentThread().isInterrupted()) {
-            Thread.sleep(10);
-        }
         logger.info("Bye!");
     }
 
