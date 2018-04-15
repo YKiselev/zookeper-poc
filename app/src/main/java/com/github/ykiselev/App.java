@@ -1,8 +1,6 @@
 package com.github.ykiselev;
 
 import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.curator.utils.ZKPaths;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -10,41 +8,38 @@ import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
 
 import java.nio.charset.StandardCharsets;
 
 /**
  * @author Yuriy Kiselev (uze@yandex.ru).
  */
-public final class App implements Common {
+@SpringBootApplication
+public class App implements Common {
 
-    private final Logger logger = LoggerFactory.getLogger(getClass());
+    private final Logger logger = LoggerFactory.getLogger("App");
 
-    private final CuratorFramework curator;
-
-    private App(CuratorFramework curator) {
-        this.curator = curator;
+    @Bean
+    CommandLineRunner runner() {
+        return args -> {
+            try (CuratorFramework cf = Curator.newCuratorFramework()) {
+                cf.start();
+                cf.blockUntilConnected();
+                run(cf);
+            }
+        };
     }
 
-    public static CuratorFramework newCuratorFramework() {
-        return CuratorFrameworkFactory.builder()
-                .connectString(CONNECT_STRING)
-                .sessionTimeoutMs(SESSION_TIMEOUT)
-                .namespace("dev")
-                .retryPolicy(new ExponentialBackoffRetry(1_000, 5))
-                .build();
+    public static void main(String[] args) {
+        SpringApplication.run(App.class, args)
+                .close();
     }
 
-    public static void main(String[] args) throws Exception {
-        try (CuratorFramework cf = newCuratorFramework()) {
-            cf.start();
-            cf.blockUntilConnected();
-            new App(cf)
-                    .run();
-        }
-    }
-
-    private void run() throws Exception {
+    private void run(CuratorFramework curator) throws Exception {
         final Stat s = curator.checkExists().forPath(PROPERTIES_ARE_LOADED);
         if (s == null) {
             logger.info("Loading properties...");
@@ -67,7 +62,6 @@ public final class App implements Common {
         // Show properties
         printTree(curator.getZookeeperClient()
                 .getZooKeeper());
-        logger.info("Bye!");
     }
 
     private void printTree(ZooKeeper zk) {
