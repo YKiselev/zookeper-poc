@@ -12,7 +12,6 @@ public final class Curator implements Common {
     public static CuratorFramework newCuratorFramework() {
         return CuratorFrameworkFactory.builder()
                 .connectString(CONNECT_STRING)
-                .sessionTimeoutMs(SESSION_TIMEOUT)
                 .namespace("dev")
                 .retryPolicy(new ExponentialBackoffRetry(1_000, 5))
                 .build();

@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit;
 @EnableScheduling
 public class ClientApp implements Common {
 
-    public static final int SERVICE_CALLS_IN_BATCH = 10_000;
+    private static final int SERVICE_CALLS_IN_BATCH = 10_000;
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
@@ -70,15 +70,6 @@ public class ClientApp implements Common {
         return (HelloService) bean.getObject();
     }
 
-    @Bean
-    HelloService directHelloService() {
-        final HessianProxyFactoryBean bean = new HessianProxyFactoryBean();
-        bean.setServiceInterface(HelloService.class);
-        bean.setServiceUrl("http://localhost:8080/helloService");
-        bean.afterPropertiesSet();
-        return (HelloService) bean.getObject();
-    }
-
     @Scheduled(fixedRate = 5_000, initialDelay = 1_000)
     void callService() {
         logger.info("Remote service says: {}", helloService().sayHello());
@@ -94,6 +85,15 @@ public class ClientApp implements Common {
         }
         final long elapsed = sw.elapsed(TimeUnit.MILLISECONDS);
         logger.info("ZooKeeper call speed: {} calls/sec, hash={}", (1000.0 * SERVICE_CALLS_IN_BATCH / elapsed), hash);
+    }
+
+    @Bean
+    HelloService directHelloService() {
+        final HessianProxyFactoryBean bean = new HessianProxyFactoryBean();
+        bean.setServiceInterface(HelloService.class);
+        bean.setServiceUrl("http://localhost:8080/helloService");
+        bean.afterPropertiesSet();
+        return (HelloService) bean.getObject();
     }
 
     //@Scheduled(fixedRate = 5_000, initialDelay = 2_000)

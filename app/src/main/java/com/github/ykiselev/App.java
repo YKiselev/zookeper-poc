@@ -14,6 +14,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Date;
 
 /**
  * @author Yuriy Kiselev (uze@yandex.ru).
@@ -40,6 +41,21 @@ public class App implements Common {
     }
 
     private void run(CuratorFramework curator) throws Exception {
+        // Sequence nodes
+        for (int i = 0; i < 3; i++) {
+            curator.create()
+                    .orSetData()
+                    .creatingParentsIfNeeded()
+                    .withMode(CreateMode.EPHEMERAL_SEQUENTIAL)
+                    .forPath("/ephemeralSequential", Bytes.toBytes(new Date().toString()));
+
+//            curator.create()
+//                    .orSetData()
+//                    .creatingParentsIfNeeded()
+//                    .withMode(CreateMode.PERSISTENT_SEQUENTIAL)
+//                    .forPath("/persistedSequential", Bytes.toBytes(new Date().toString()));
+        }
+
         final Stat s = curator.checkExists().forPath(PROPERTIES_ARE_LOADED);
         if (s == null) {
             logger.info("Loading properties...");

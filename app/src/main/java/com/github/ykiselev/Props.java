@@ -1,5 +1,6 @@
 package com.github.ykiselev;
 
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.zookeeper.CreateMode;
@@ -24,7 +25,10 @@ public final class Props {
 
     public void loadFrom(URL res) {
         try (InputStream is = res.openStream()) {
-            set(res.getFile(), IOUtils.toByteArray(is));
+            set(
+                    FilenameUtils.getName(res.getFile()),
+                    IOUtils.toByteArray(is)
+            );
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
