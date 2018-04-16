@@ -154,3 +154,42 @@ RetryPolicy retryPolicy = new ExponentialBackoffRetry(1000, 3)
 CuratorFramework client = CuratorFrameworkFactory.newClient(zookeeperConnectionString, retryPolicy);
 client.start();
 client.create().forPath("/my/path", myData)
+
+Working with ZooKeeper
+
+curator.create()
+    .orSetData()
+    .creatingParentsIfNeeded()
+    .withMode(CreateMode.EPHEMERAL)
+    .forPath("/a/b/c", "Hello, World!".getBytes())
+
+Service discovery
+- Server side
+    CuratorFramework = ...
+    ServiceDiscovery sd = ServiceDiscoveryBuilder.builder()
+                    .basePath("/services")
+                    .client(curator)
+                    .build();
+    discovery.registerService(
+            ServiceInstance.builder()
+                    .name("myService")
+                    .address("localhost")
+                    .port(8080)
+                    .serviceType(ServiceType.DYNAMIC)
+                    .uriSpec(new UriSpec("{scheme}://{address}:{port}/helloService"))
+                    .build()
+    );
+
+
+- Client side
+    CuratorFramework = ...
+    ServiceDiscovery sd = ServiceDiscoveryBuilder.builder()
+                    .basePath("/services")
+                    .client(curator)
+                    .build()
+    ServiceProvider sp = sd.serviceProviderBuilder()
+                    .serviceName("myService")
+                    .providerStrategy(...)
+                    .downInstancePolicy(...)
+                    .build();
+    String uri = sp.getInstance().buildUriSpec()

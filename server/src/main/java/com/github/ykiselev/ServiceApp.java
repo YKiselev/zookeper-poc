@@ -40,22 +40,12 @@ public class ServiceApp {
     }
 
     @Bean(initMethod = "start")
-    ServiceDiscovery<Void> discovery() throws Exception {
+    ServiceDiscovery<Void> discovery() {
         logger.info("Registering service...");
-        final ServiceDiscoveryBuilder<Void> sdb = ServiceDiscoveryBuilder.builder(Void.class)
+        return ServiceDiscoveryBuilder.builder(Void.class)
                 .basePath("/services")
-                .client(curator());
-//                .thisInstance(
-//                        ServiceInstance.<Void>builder()
-//                                .name(HelloService.class.getName())
-//                                .address("localhost")
-//                                .port(webPort)
-//                                .id(UUID.randomUUID().toString())
-//                                .serviceType(ServiceType.DYNAMIC) // ????
-//                                .uriSpec(new UriSpec("{scheme}://{adddress}:{port}/helloService"))
-//                                .build()
-//                );
-        return sdb.build();
+                .client(curator())
+                .build();
     }
 
     @Bean
@@ -67,7 +57,6 @@ public class ServiceApp {
                             .name(HelloService.class.getName())
                             .address("localhost")
                             .port(webPort)
-                            .id(UUID.randomUUID().toString())
                             .serviceType(ServiceType.DYNAMIC)
                             .uriSpec(new UriSpec("{scheme}://{address}:{port}/helloService"))
                             .build()
