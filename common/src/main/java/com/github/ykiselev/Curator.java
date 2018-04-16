@@ -7,11 +7,13 @@ import org.apache.curator.retry.ExponentialBackoffRetry;
 /**
  * @author Yuriy Kiselev (uze@yandex.ru).
  */
-public final class Curator implements Common {
+public final class Curator {
+
+    private static final String CONNECT_STRING = "localhost:2181";
 
     public static CuratorFramework newCuratorFramework() {
         return CuratorFrameworkFactory.builder()
-                .connectString(CONNECT_STRING)
+                .connectString(System.getProperty("zk.connectString", CONNECT_STRING))
                 .namespace("dev")
                 .retryPolicy(new ExponentialBackoffRetry(1_000, 5))
                 .build();

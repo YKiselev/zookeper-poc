@@ -25,22 +25,14 @@ public final class Props {
 
     public void loadFrom(URL res) {
         try (InputStream is = res.openStream()) {
-            set(
-                    FilenameUtils.getName(res.getFile()),
-                    IOUtils.toByteArray(is)
-            );
+            set("/" + FilenameUtils.getName(res.getFile()),
+                    IOUtils.toByteArray(is));
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
     }
 
     private void set(String name, byte[] value) {
-        if (name == null) {
-            return;
-        }
-        if (!name.startsWith("/")) {
-            name = "/" + name;
-        }
         try {
             curator.create()
                     .orSetData()

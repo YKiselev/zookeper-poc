@@ -74,19 +74,15 @@ public final class MyHessianProxyFactory extends HessianProxyFactory {
                         }
                     }
                     if (handler == null) {
-                        handler = new MyProxy(
-                                url,
-                                MyHessianProxyFactory.this,
-                                api
-                        );
+                        handler = new MyProxy(url, MyHessianProxyFactory.this, api);
                     }
                     return handler.invoke(proxy, method, args);
                 } catch (InterruptedException ie) {
-                    logger.warn("Interrupted!");
+                    logger.warn("Interrupted: {}", ie.toString());
                     Thread.currentThread().interrupt();
                     break;
                 } catch (Exception e) {
-                    logger.warn("Operation failed: {}", e);
+                    logger.warn("Operation failed: {}", e.toString());
                     if (instance != null) {
                         provider.noteError(instance);
                     }

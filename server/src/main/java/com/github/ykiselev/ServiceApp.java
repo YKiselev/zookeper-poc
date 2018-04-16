@@ -15,19 +15,24 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.remoting.caucho.HessianServiceExporter;
 
+import java.nio.BufferUnderflowException;
 import java.util.Date;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * @author Yuriy Kiselev (uze@yandex.ru).
  */
 @SpringBootApplication
-public class ServiceApp implements Common {
+public class ServiceApp {
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
     @Value("${server.port}")
     private int webPort;
+
+    @Value("${failThreshold}")
+    private double failThreshold;
 
     @Bean(initMethod = "start")
     CuratorFramework curator() {
@@ -39,17 +44,17 @@ public class ServiceApp implements Common {
         logger.info("Registering service...");
         final ServiceDiscoveryBuilder<Void> sdb = ServiceDiscoveryBuilder.builder(Void.class)
                 .basePath("/services")
-                .client(curator())
-                .thisInstance(
-                        ServiceInstance.<Void>builder()
-                                .name(HelloService.class.getName())
-                                .address("localhost")
-                                .port(webPort)
-                                .id(UUID.randomUUID().toString())
-                                .serviceType(ServiceType.DYNAMIC) // ????
-                                .uriSpec(new UriSpec("{scheme}://{adddress}:{port}/helloService"))
-                                .build()
-                );
+                .client(curator());
+//                .thisInstance(
+//                        ServiceInstance.<Void>builder()
+//                                .name(HelloService.class.getName())
+//                                .address("localhost")
+//                                .port(webPort)
+//                                .id(UUID.randomUUID().toString())
+//                                .serviceType(ServiceType.DYNAMIC) // ????
+//                                .uriSpec(new UriSpec("{scheme}://{adddress}:{port}/helloService"))
+//                                .build()
+//                );
         return sdb.build();
     }
 
@@ -57,6 +62,16 @@ public class ServiceApp implements Common {
     CommandLineRunner runner() {
         return args -> {
             final ServiceDiscovery<Void> discovery = discovery();
+            discovery.registerService(
+                    ServiceInstance.<Void>builder()
+                            .name(HelloService.class.getName())
+                            .address("localhost")
+                            .port(webPort)
+                            .id(UUID.randomUUID().toString())
+                            .serviceType(ServiceType.DYNAMIC)
+                            .uriSpec(new UriSpec("{scheme}://{address}:{port}/helloService"))
+                            .build()
+            );
             discovery.queryForNames().forEach(v -> {
                 try {
                     discovery.queryForInstances(v)
@@ -70,7 +85,12 @@ public class ServiceApp implements Common {
 
     @Bean
     HelloService helloService() {
-        return () -> "Hello @ " + new Date();
+        return () -> {
+            if (ThreadLocalRandom.current().nextDouble() >= failThreshold) {
+                throw new BufferUnderflowException();
+            }
+            return "Hello @ " + new Date();
+        };
     }
 
     @Bean(name = "/helloService")

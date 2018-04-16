@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
  */
 @SpringBootApplication
 @EnableScheduling
-public class ClientApp implements Common {
+public class ClientApp {
 
     private static final int SERVICE_CALLS_IN_BATCH = 10_000;
 
@@ -52,7 +52,7 @@ public class ClientApp implements Common {
                         new StickyStrategy<>(
                                 new RoundRobinStrategy<>()
                         )
-                ).downInstancePolicy(new DownInstancePolicy())
+                ).downInstancePolicy(new DownInstancePolicy(30, TimeUnit.SECONDS, 1))
                 .build();
     }
 
@@ -70,13 +70,14 @@ public class ClientApp implements Common {
         return (HelloService) bean.getObject();
     }
 
-    @Scheduled(fixedRate = 5_000, initialDelay = 1_000)
+    @Scheduled(fixedDelay = 5_000, initialDelay = 1_000)
     void callService() {
         logger.info("Remote service says: {}", helloService().sayHello());
+        //callServiceUsingZooKeeper();
+        //callServiceDirectly();
     }
 
-    //@Scheduled(fixedRate = 5_000, initialDelay = 1_000)
-    void callServiceUsingZooKeeper() {
+    private void callServiceUsingZooKeeper() {
         final HelloService helloService = helloService();
         final Stopwatch sw = Stopwatch.createStarted();
         long hash = 0;
@@ -96,8 +97,7 @@ public class ClientApp implements Common {
         return (HelloService) bean.getObject();
     }
 
-    //@Scheduled(fixedRate = 5_000, initialDelay = 2_000)
-    void callServiceDirectly() {
+    private void callServiceDirectly() {
         final HelloService helloService = directHelloService();
         final Stopwatch sw = Stopwatch.createStarted();
         long hash = 0;

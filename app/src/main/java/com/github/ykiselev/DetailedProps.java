@@ -27,24 +27,18 @@ public final class DetailedProps {
         try (InputStream is = res.openStream()) {
             final Properties p = new Properties();
             p.load(is);
-            p.forEach((k, v) -> set((String) k, (String) v));
+            p.forEach((k, v) -> set("/" + k, (String) v));
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
     }
 
     private void set(String name, String value) {
-        if (name == null) {
-            return;
-        }
-        if (!name.startsWith("/")) {
-            name = "/" + name;
-        }
         try {
             curator.create()
                     .orSetData()
                     .creatingParentsIfNeeded()
-                    .withMode(CreateMode.EPHEMERAL)
+                    .withMode(CreateMode.PERSISTENT)
                     .forPath(name, raw(value));
         } catch (Exception e) {
             throw new RuntimeException(e);
