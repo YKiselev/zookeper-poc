@@ -37,7 +37,7 @@ public final class Props {
             curator.create()
                     .orSetData()
                     .creatingParentsIfNeeded()
-                    .withMode(CreateMode.EPHEMERAL)
+                    .withMode(CreateMode.PERSISTENT)
                     .forPath(name, value);
         } catch (Exception e) {
             throw new RuntimeException(e);
