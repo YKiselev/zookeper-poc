@@ -25,6 +25,8 @@ public final class App {
     }
 
     private void run(CuratorFramework curator) throws Exception {
+        //curator.delete().deletingChildrenIfNeeded().forPath("/");
+
         logger.info("Loading fine-grained properties...");
         final DetailedProps p1 = new DetailedProps(curator);
         p1.loadFrom(getClass().getResource("/demo.properties"));
