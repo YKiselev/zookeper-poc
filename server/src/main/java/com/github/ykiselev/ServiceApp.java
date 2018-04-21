@@ -17,7 +17,6 @@ import org.springframework.remoting.caucho.HessianServiceExporter;
 
 import java.nio.BufferUnderflowException;
 import java.util.Date;
-import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
